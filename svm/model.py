@@ -19,12 +19,13 @@ def augment_labels(labels, windows=1):
     target = math.ceil(N / windows)
 
     return (
-        np.round(
-            # np.mean(
+        # np.round(
+            np.mean(
                 labels[:, i * target : (i+1) * target]
-                # , axis=1
-            # )
-        ) for i in range(windows)
+                , axis=1
+            )
+        # )
+    for i in range(windows)
     )
 
 w = 5
