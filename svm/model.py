@@ -2,7 +2,7 @@ import math
 import numpy as np
 from sklearn.svm import SVC
 
-from svm.import_data import *
+from import_data import *
 
 
 def augment_features(features, windows=1):
@@ -42,4 +42,3 @@ for i, features, labels in zip(range(w), augment_features(features, windows=w), 
     svcs[i].fit(features, labels)
     predictions = svcs[i].predict(features)
     print(svcs[i].score(features, labels))
-
