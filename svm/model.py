@@ -1,44 +1,39 @@
 import math
 import numpy as np
-from sklearn.svm import SVC
+# from sklearn.svm import SVR as Model
+from sklearn.svm import SVC as Model
 
 from import_data import *
 
 
-def augment_features(features, windows=1):
-    N = len(features[0])
-    target = math.ceil(N / windows)
+def augment_features(features, window_size=1):
+    assert window_size & 1, "Window size must be odd"
+    num_sites = features.shape[1]
 
-    print("Target", target)
-
-    return (features[:, i * target : (i+1) * target] for i in range(windows))
+    return (features[:, i - window_size//2 : i + 1 + window_size//2] for i in range(window_size//2, num_sites - window_size//2))
 
 
-def augment_labels(labels, windows=1):
-    N = len(labels[0])
-    target = math.ceil(N / windows)
+def augment_labels(labels, window_size=1):
+    assert window_size & 1, "Window size must be odd"
+    num_sites = features.shape[1]
 
-    return (
-        np.round(
-            np.mean(
-                labels[:, i * target : (i+1) * target]
-                , axis=1
-            )
-        ) for i in range(windows)
-    )
+    return (labels[:, i] for i in range(window_size//2, num_sites - window_size//2))
 
-w = 5
+
+w = 11
 features = get_genotypes()
 labels = get_ancestry()
 
 labels[:,0:1000].shape
 
+print(features.shape)
 print(labels.shape)
 
-svcs = [SVC(kernel='linear') for _ in range(w)]
-
-for i, features, labels in zip(range(w), augment_features(features, windows=w), augment_labels(labels, windows=w)):
-    print("%i: Features shape: %s \tLabels shape: %s" % (i, str(features.shape), str(labels.shape)))
-    svcs[i].fit(features, labels)
-    predictions = svcs[i].predict(features)
-    print(svcs[i].score(features, labels))
+models = []
+for features, labels in zip(augment_features(features, window_size=w), augment_labels(labels, window_size=w)):
+    print("Features shape: %s \tLabels shape: %s" % (str(features.shape), str(labels.shape)))
+    model = Model(kernel="linear")
+    model.fit(features, labels)
+    predictions = model.predict(features)
+    print(model.score(features, labels))
+    models.append(model)
