@@ -2,7 +2,7 @@ import math
 import numpy as np
 from sklearn.svm import SVR as Model
 
-from svm.import_data import *
+from import_data import *
 
 
 def augment_features(features, windows=1):
