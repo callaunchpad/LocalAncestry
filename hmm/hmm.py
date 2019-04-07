@@ -1,5 +1,6 @@
 import numpy as np
 import time
+from import_data import *
 
 # Define hyperparameters (param1 for European, param2 for African)
 n1 = 100
@@ -89,6 +90,14 @@ def transition(curr_state, r_s, obs):
 
 	return next_hidden_state
 
+def emission(curr_state):
+	# population j is 1 for european, 2 for african 
+	(i, j, k) = curr_state
+	thetai = (theta1 if i == 1 else theta2)
+	if i == j: 
+		return thetai * (j == 1) + (1 - thetai) * (j == 2)
+	else: 
+		return theta3 * (j == 1) + (1 - theta3) * (j == 2)
 			
 curr_state = (1, 1, 10)
 st = time.time()
