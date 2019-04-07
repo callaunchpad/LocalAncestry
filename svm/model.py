@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from sklearn.svm import SVC
+from sklearn.svm import SVR as Model
 
 from svm.import_data import *
 
@@ -20,10 +20,10 @@ def augment_labels(labels, windows=1):
 
     return (
         np.round(
-            np.mean(
+            # np.mean(
                 labels[:, i * target : (i+1) * target]
-                , axis=1
-            )
+                # , axis=1
+            # )
         ) for i in range(windows)
     )
 
@@ -33,9 +33,10 @@ labels = get_ancestry()
 
 labels[:,0:1000].shape
 
+print(features.shape)
 print(labels.shape)
 
-svcs = [SVC(kernel='linear') for _ in range(w)]
+svcs = [Model(kernel='linear') for _ in range(w)]
 
 for i, features, labels in zip(range(w), augment_features(features, windows=w), augment_labels(labels, windows=w)):
     print("%i: Features shape: %s \tLabels shape: %s" % (i, str(features.shape), str(labels.shape)))
