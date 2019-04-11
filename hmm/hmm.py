@@ -188,7 +188,6 @@ def fwd_bkw(observations, gen_distances, states):
 	for i in range(len(observations)):
 		posterior.append({st: fwd[i][st] * bkw[i][st] / p_fwd for st in states})
 
-	print(p_fwd, p_bkw)
 	return fwd, posterior
 
 def phase_observations(observations, gen_distances, states):
@@ -255,12 +254,6 @@ observations = [0, 0, 0, 0, 1, 1, 1, 1]
 gen_distances = list(range(1000)) #dummy variable
 fwd, posterior = fwd_bkw(observations, gen_distances, states, trans_prob, emmission_prob)
 
-for hm in posterior:
-	print(hm, dict_sum(hm))
-
-print("printing forward pass")
-for hm in fwd:
-	print(hm, dict_sum(hm))
 
 most_probable_states = []
 for hs in posterior:
