@@ -1,5 +1,11 @@
 import numpy as np
 import time
+from import_data import *
+
+# Get reference population data 
+pop1 = get_genotypes("CEU") 
+pop2 = get_genotypes("YRI") 
+print('lengths', len(pop1), len(pop2))
 
 # Define hyperparameters (param1 for European, param2 for African)
 n1 = 100
@@ -24,6 +30,10 @@ def pois_T(r_s):
 
 def pois_ro(r_s, ro):
 	return np.exp(-r_s * ro)
+
+def indicator(pop, indiv, value, site):
+	data = (pop1 if pop == 1 else pop2)	
+	return data[indiv][site] == value
 
 # Helper for generating hidden states
 def gen_hidden_states():
@@ -88,6 +98,15 @@ def transition(curr_state, r_s, obs):
 	next_hidden_state = list(trans_mat.keys())[next_hidden_state_ind]
 
 	return next_hidden_state
+
+def emission(curr_state, site):
+	# population j is 1 for european, 2 for african 
+	(i, j, k) = curr_state
+	thetai = (theta1 if i == 1 else theta2)
+	if i == j: 
+		return thetai * indicator(j, k, 0, site) + (1 - thetai) * indicator(j, k, 1, site)
+	else: 
+		return theta3 * indicator(j, k, 0, site) + (1 - theta3) * indicator(j, k, 1, site)
 
 # Transition state function
 def transition_prob(curr_state, given_state, r_s):
@@ -188,9 +207,12 @@ def sample_path():
 	st = time.time()
 	for i in range(10000):
 		next_state = transition(curr_state, np.random.uniform(), 1)
+		em_prob = emission(curr_state, i)
 		if i % 500 == 0:
-			print(next_state)
+			print('next_state', next_state)
+			print('emission', em_prob)
 		curr_state = next_state
+
 	print(time.time() - st)
 
 trans_prob_matrix = [[0.05, 0.9, 0.05], [0.9, 0.01, 0.09], [0.1, 0.1, 0.8]]
@@ -235,4 +257,6 @@ for hs in posterior:
 			max_state = state
 	most_probable_states.append(max_state)
 print(most_probable_states)
+
+
 
