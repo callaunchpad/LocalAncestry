@@ -5,7 +5,9 @@ from import_data import *
 # Get reference population data 
 pop1 = get_genotypes("CEU") 
 pop2 = get_genotypes("YRI") 
-print('lengths', len(pop1), len(pop2))
+
+# Get genetic distance data - CEU & YRI snp data files are the same
+gen_dists = get_gen_distances("CEU")
 
 # Define hyperparameters (param1 for European, param2 for African)
 n1 = 100
@@ -99,7 +101,7 @@ def transition(curr_state, r_s, obs):
 
 	return next_hidden_state
 
-def emission(curr_state, site):
+def emm_prob(curr_state, site):
 	# population j is 1 for european, 2 for african 
 	(i, j, k) = curr_state
 	thetai = (theta1 if i == 1 else theta2)
@@ -137,15 +139,14 @@ def transition_prob(curr_state, given_state, r_s):
 
 			
 # Adapted from Wikipedia: Forward-Backward Algorithm
-def fwd_bkw(observations, gen_distances, states, transition_prob, emm_prob):
+def fwd_bkw(observations, gen_distances, states):
 	"""
-	observations: array of 1/0s
+	observations: array of indices of the sites to be looked at (zero indexed)
 	states: array of states
 	start_prob: dictionary of key: states, value: probability
 	trans_prob(curr_state, next_state): function which gives probability between two states, returns float
 	emm_prob(curr_state, obs): function which gives probability of emissions, returns float	
 	"""
-	#observations ---> [(r_s, emssions)]
 	# forward part of the algorithm
 	fwd = []
 	f_prev = {}
@@ -190,8 +191,8 @@ def fwd_bkw(observations, gen_distances, states, transition_prob, emm_prob):
 	assert p_fwd == p_bkw
 	return fwd, posterior
 
-def phase_observations(observations, gen_distances, states, transition_prob, emm_prob):
-	fwd, posterior = fwd_bkw(observations, gen_distances, states, transition_prob, emm_prob)
+def phase_observations(observations, gen_distances, states):
+	fwd, posterior = fwd_bkw(observations, gen_distances, states)
 	most_probable_states = []
 	for hs in posterior:
 		max_state = None
@@ -201,14 +202,22 @@ def phase_observations(observations, gen_distances, states, transition_prob, emm
 				max_prob = state
 		most_probable_states.append(max_state)
 
+
+phase_observations(list(range(378678)), gen_dists, gen_hidden_states())
+
+
+
+
+
+
 curr_state = (1, 1, 10)
 st = time.time()
 for i in range(10000):
 	next_state = transition(curr_state, np.random.uniform(), 1)
-	em_prob = emission(curr_state, i)
+	emission = emm_prob(curr_state, i)
 	if i % 500 == 0:
 		print('next_state', next_state)
-		print('emission', em_prob)
+		print('emission', emission)
 	curr_state = next_state
 
 print(time.time() - st)
