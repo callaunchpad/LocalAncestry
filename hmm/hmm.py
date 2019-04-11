@@ -128,6 +128,7 @@ def fwd_bkw(observations, gen_distances, states, transition_prob, emm_prob):
 	"""
 	#observations ---> [(r_s, emssions)]
 	# forward part of the algorithm
+
 	fwd = []
 	f_prev = {}
 	for i, observation_i in enumerate(observations):
@@ -137,24 +138,23 @@ def fwd_bkw(observations, gen_distances, states, transition_prob, emm_prob):
 				# base case for the forward part
 				prev_f_sum = 1/len(states)
 			else:
-				prev_f_sum = sum(f_prev[k]*transition_prob(st, k, gen_distances[i-1]) for k in states)
-
+				prev_f_sum = sum(f_prev[k]*transition_prob(k, st, gen_distances[i-1]) for k in states)
 			f_curr[st] = emm_prob(st, observation_i) * prev_f_sum
 
 		fwd.append(f_curr)
 		f_prev = f_curr
 
-	p_fwd = sum(f_curr[k] for k in states)
+	p_fwd = sum(f_curr[k] * 1 / len(states) for k in states)
 
 	# backward part of the algorithm
 	bkw = []
 	b_prev = {}
-	for i, observation_i_plus in enumerate(reversed(observations[1:]+(None,))):
+	for i, observation_i_plus in enumerate(reversed(observations[1:]+[None])):
 		b_curr = {}
 		for st in states:
 			if i == 0:
 				# base case for backward part
-				b_curr[st] = 1
+				b_curr[st] = 1 / len(states)
 			else:
 				b_curr[st] = sum(transition_prob(st, l, gen_distances[-i]) * emm_prob(l, observation_i_plus) * b_prev[l] for l in states)
 
@@ -168,7 +168,7 @@ def fwd_bkw(observations, gen_distances, states, transition_prob, emm_prob):
 	for i in range(len(observations)):
 		posterior.append({st: fwd[i][st] * bkw[i][st] / p_fwd for st in states})
 
-	assert p_fwd == p_bkw
+	print(p_fwd, p_bkw)
 	return fwd, posterior
 
 def phase_observations(observations, gen_distances, states, transition_prob, emm_prob):
@@ -179,14 +179,60 @@ def phase_observations(observations, gen_distances, states, transition_prob, emm
 		max_prob = 0
 		for state, prob in hs.items():
 			if(prob > max_prob):
-				max_prob = state
+				max_prob = prob
+				max_state = state
 		most_probable_states.append(max_state)
 
-curr_state = (1, 1, 10)
-st = time.time()
-for i in range(10000):
-	next_state = transition(curr_state, np.random.uniform(), 1)
-	if i % 500 == 0:
-		print(next_state)
-	curr_state = next_state
-print(time.time() - st)
+def sample_path():
+	curr_state = (1, 1, 10)
+	st = time.time()
+	for i in range(10000):
+		next_state = transition(curr_state, np.random.uniform(), 1)
+		if i % 500 == 0:
+			print(next_state)
+		curr_state = next_state
+	print(time.time() - st)
+
+trans_prob_matrix = [[0.05, 0.9, 0.05], [0.9, 0.01, 0.09], [0.1, 0.1, 0.8]]
+trans_prob = lambda x, y, _: trans_prob_matrix[x][y]
+states = list(range(3))
+def emmission_prob(x, y):
+	if(y == 0):
+		if(x < 2):
+			return 0.9
+		else:
+			return 0.1
+	if(y == 1):
+		if(x >= 2):
+			return 0.9
+		else:
+			return 0.1
+
+def dict_sum(states):
+	total = 0
+	for state, prob in states.items():
+		total += prob
+	return total
+
+observations = [0, 0, 0, 0, 1, 1, 1, 1]
+gen_distances = list(range(1000)) #dummy variable
+fwd, posterior = fwd_bkw(observations, gen_distances, states, trans_prob, emmission_prob)
+
+for hm in posterior:
+	print(hm, dict_sum(hm))
+
+print("printing forward pass")
+for hm in fwd:
+	print(hm, dict_sum(hm))
+
+most_probable_states = []
+for hs in posterior:
+	max_state = None
+	max_prob = 0
+	for state, prob in hs.items():
+		if(prob > max_prob):
+			max_prob = prob
+			max_state = state
+	most_probable_states.append(max_state)
+print(most_probable_states)
+
