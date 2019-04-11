@@ -28,7 +28,7 @@ def get_gen_distances(filename):
     for line in snptype_file:
         line = ' '.join(line.split())
         line = line.split()
-        gen_distances.append(line[2])
+        gen_distances.append(float(line[2]))
 
     print('done parsing genetic distances')
     return gen_distances
