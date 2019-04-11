@@ -20,6 +20,19 @@ def get_genotypes(filename):
     print('done loading', filename)
     return arr  
 
+def get_gen_distances(filename):
+    snptype_file_loc = DATASET_ROOT + filename + ".phsnp"
+    snptype_file = Peekable(filename=snptype_file_loc)
+
+    gen_distances = []
+    for line in snptype_file:
+        line = ' '.join(line.split())
+        line = line.split()
+        gen_distances.append(line[2])
+
+    print('done parsing genetic distances')
+    return gen_distances
+
 def get_ancestry():
     ancestry_file_loc = DATASET_ROOT + FILE_NAME + ".ancestry"
     ancestry_file = Peekable(filename=ancestry_file_loc)
