@@ -107,7 +107,100 @@ def emission(curr_state, site):
 		return thetai * indicator(j, k, 0, site) + (1 - thetai) * indicator(j, k, 1, site)
 	else: 
 		return theta3 * indicator(j, k, 0, site) + (1 - theta3) * indicator(j, k, 1, site)
+
+# Transition state function
+def transition_prob(curr_state, given_state, r_s):
+	"""
+	curr_state: (i, j, k) triple of values denoting current hidden state
+	r_s: genetic distance between current pair of SNP sites
+	obs: observed value
+
+	returns: probability of transitioning from curr_state to given_state
+	"""
+	(i, j, k) = curr_state
+	(l, m, n) = given_state
+
+	mu_l, ro_l, p_l, n_m = get_relevant_vars(given_state)
+
+	if l != i and m == l:
+		return (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+	elif l != i and m != l:
+		return (1 - pois_T(r_s))*mu_l * p_l/n_m
+	elif l == i and m == l and (j != m or k != n):
+		return pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * (1 - p_l)/n_m + (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+	elif l == i and m == l and j == m and k == n:
+		return pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * (1 - p_l)/n_m + (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+	elif l == i and m != l and (j != m or k != n):
+		return pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
+	elif l == i and m != l and j == m and k == n:
+		return pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
+
 			
+# Adapted from Wikipedia: Forward-Backward Algorithm
+def fwd_bkw(observations, gen_distances, states, transition_prob, emm_prob):
+	"""
+	observations: array of 1/0s
+	states: array of states
+	start_prob: dictionary of key: states, value: probability
+	trans_prob(curr_state, next_state): function which gives probability between two states, returns float
+	emm_prob(curr_state, obs): function which gives probability of emissions, returns float	
+	"""
+	#observations ---> [(r_s, emssions)]
+	# forward part of the algorithm
+	fwd = []
+	f_prev = {}
+	for i, observation_i in enumerate(observations):
+		f_curr = {}
+		for st in states:
+			if i == 0:
+				# base case for the forward part
+				prev_f_sum = 1/len(states)
+			else:
+				prev_f_sum = sum(f_prev[k]*transition_prob(st, k, gen_distances[i-1]) for k in states)
+
+			f_curr[st] = emm_prob(st, observation_i) * prev_f_sum
+
+		fwd.append(f_curr)
+		f_prev = f_curr
+
+	p_fwd = sum(f_curr[k] for k in states)
+
+	# backward part of the algorithm
+	bkw = []
+	b_prev = {}
+	for i, observation_i_plus in enumerate(reversed(observations[1:]+(None,))):
+		b_curr = {}
+		for st in states:
+			if i == 0:
+				# base case for backward part
+				b_curr[st] = 1
+			else:
+				b_curr[st] = sum(transition_prob(st, l, gen_distances[-i]) * emm_prob(l, observation_i_plus) * b_prev[l] for l in states)
+
+		bkw.insert(0, b_curr)
+		b_prev = b_curr
+
+	p_bkw = sum(1/len(states) * emm_prob(l, observations[0]) * b_curr[l] for l in states)
+
+	# merging the two parts
+	posterior = []
+	for i in range(len(observations)):
+		posterior.append({st: fwd[i][st] * bkw[i][st] / p_fwd for st in states})
+
+	assert p_fwd == p_bkw
+	return fwd, posterior
+
+def phase_observations(observations, gen_distances, states, transition_prob, emm_prob):
+	fwd, posterior = fwd_bkw(observations, gen_distances, states, transition_prob, emm_prob)
+	most_probable_states = []
+	for hs in posterior:
+		max_state = None
+		max_prob = 0
+		for state, prob in hs.items():
+			if(prob > max_prob):
+				max_prob = state
+		most_probable_states.append(max_state)
+
 curr_state = (1, 1, 10)
 st = time.time()
 for i in range(10000):
@@ -117,12 +210,6 @@ for i in range(10000):
 		print('next_state', next_state)
 		print('emission', em_prob)
 	curr_state = next_state
+
 print(time.time() - st)
 
-
-
-
-
-
-
-	
