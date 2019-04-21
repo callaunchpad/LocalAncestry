@@ -3,18 +3,24 @@ from peekable import Peekable
 
 DATASET_ROOT = "dataset/"
 
-def get_genotypes(filename):
+def get_genotypes(filename, data_inds):
     genotype_file_loc = DATASET_ROOT + filename + ".phgeno"
     genotype_file = Peekable(filename=genotype_file_loc)
 
     first_line = genotype_file.peek().strip()
 
     individuals = [[] for _ in first_line]
-    for line in genotype_file:
-        line = line.strip()
 
-        for i in range(len(line)):
-            individuals[i].append(int(line[i]))
+    ind = 0
+    for line in genotype_file:
+        if ind > max(data_inds):
+            break
+        if ind in data_inds:
+            line = line.strip()
+
+            for i in range(len(line)):
+                individuals[i].append(int(line[i]))
+        ind += 1
         
     arr = np.array(individuals) # have matrix of individuals [sites x individuals]
     print('done loading', filename)
