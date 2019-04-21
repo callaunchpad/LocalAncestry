@@ -1,17 +1,22 @@
 import numpy as np
 import time
 from import_data import *
+import matplotlib.pyplot as plt
+
+data_inds = list(range(100))
+num_inds = 10
+num_obs = 30
 
 # Get reference population data 
-pop1 = get_genotypes("CEU") 
-pop2 = get_genotypes("YRI") 
+pop1 = get_genotypes("CEU", data_inds)[:num_inds, :] 
+pop2 = get_genotypes("YRI", data_inds)[:num_inds, :]
 
 # Get genetic distance data - CEU & YRI snp data files are the same
 gen_dists = get_gen_distances("CEU")
 
 # Define hyperparameters (param1 for European, param2 for African)
-n1 = 100
-n2 = 100
+n1 = pop1.shape[0]
+n2 = pop2.shape[0]
 
 T = 10
 mu1 = 0.5
@@ -34,8 +39,11 @@ def pois_ro(r_s, ro):
 	return np.exp(-r_s * ro)
 
 def indicator(pop, indiv, value, site):
-	data = (pop1 if pop == 1 else pop2)	
-	return data[indiv][site] == value
+	data = (pop1 if indiv < n1 else pop2)
+	# print(pop, indiv, value)
+	if indiv < n1:
+		return data[indiv][site] == value
+	return data[indiv - n2][site] == value
 
 # Helper for generating hidden states
 def gen_hidden_states():
@@ -193,17 +201,45 @@ def fwd_bkw(observations, gen_distances, states):
 def phase_observations(observations, gen_distances, states):
 	fwd, posterior = fwd_bkw(observations, gen_distances, states)
 	most_probable_states = []
+	highest_probs = []
 	for hs in posterior:
-		max_state = None
+		max_states = {}
 		max_prob = 0
 		for state, prob in hs.items():
-			if(prob > max_prob):
+			if(prob >= max_prob):
 				max_prob = prob
-				max_state = state
-		most_probable_states.append(max_state)
-	return most_probable_states
+		for state, prob in hs.items():
+			if(prob == max_prob):
+				max_states[state] = prob
 
-print(phase_observations(list(range(5)), gen_dists, gen_hidden_states()))
+		normalized_probs = np.array(list(max_states.values()))/sum(list(max_states.values()))
+		state_ind = np.random.choice(list(range(len(max_states))), 1, p=normalized_probs)[0]
+		state = list(max_states.keys())[state_ind]
+
+		most_probable_states.append(state)
+		highest_probs.append(max_states[state])
+
+	return most_probable_states, highest_probs
+
+st = time.time()
+m, h = phase_observations(list(range(num_obs)), gen_dists, gen_hidden_states())
+print("TIME", time.time() - st)
+print(m)
+print(h)
+
+x = list(range(len(m)))
+y = [(num_inds - elem[2])  for elem in m]
+c = ['blue' if elem[0] == 1 else 'red' for elem in m]
+
+plt.figure()
+plt.scatter(x, y, c = c)
+for i in range(num_inds * 2):
+	plt.plot([-1, num_obs + 1], [num_inds-i, num_inds-i], c = 'black')
+plt.plot(x, y, c = 'green')
+plt.xlabel("SNP Site")
+plt.ylabel("Individual Index")
+plt.show()
+print(x, y)
 
 # curr_state = (1, 1, 10)
 # st = time.time()
