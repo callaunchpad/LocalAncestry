@@ -201,68 +201,69 @@ def phase_observations(observations, gen_distances, states):
 				max_prob = prob
 				max_state = state
 		most_probable_states.append(max_state)
+	return most_probable_states
 
-phase_observations(list(range(378678)), gen_dists, gen_hidden_states())
+print(phase_observations(list(range(5)), gen_dists, gen_hidden_states()))
 
-curr_state = (1, 1, 10)
-st = time.time()
-for i in range(10000):
-	next_state = transition(curr_state, np.random.uniform(), 1)
-	emission = emm_prob(curr_state, i)
-	if i % 500 == 0:
-		print('next_state', next_state)
-		print('emission', emission)
-	curr_state = next_state
+# curr_state = (1, 1, 10)
+# st = time.time()
+# for i in range(10000):
+# 	next_state = transition(curr_state, np.random.uniform(), 1)
+# 	emission = emm_prob(curr_state, i)
+# 	if i % 500 == 0:
+# 		print('next_state', next_state)
+# 		print('emission', emission)
+# 	curr_state = next_state
 
-print(time.time() - st)
+# print(time.time() - st)
 
-def sample_path():
-	curr_state = (1, 1, 10)
-	st = time.time()
-	for i in range(10000):
-		next_state = transition(curr_state, np.random.uniform(), 1)
-		em_prob = emission(curr_state, i)
-		if i % 500 == 0:
-			print('next_state', next_state)
-			print('emission', em_prob)
-		curr_state = next_state
+# def sample_path():
+# 	curr_state = (1, 1, 10)
+# 	st = time.time()
+# 	for i in range(10000):
+# 		next_state = transition(curr_state, np.random.uniform(), 1)
+# 		em_prob = emission(curr_state, i)
+# 		if i % 500 == 0:
+# 			print('next_state', next_state)
+# 			print('emission', em_prob)
+# 		curr_state = next_state
 
-	print(time.time() - st)
+# 	print(time.time() - st)
 
-trans_prob_matrix = [[0.05, 0.9, 0.05], [0.9, 0.01, 0.09], [0.1, 0.1, 0.8]]
-trans_prob = lambda x, y, _: trans_prob_matrix[x][y]
-states = list(range(3))
-def emmission_prob(x, y):
-	if(y == 0):
-		if(x < 2):
-			return 0.9
-		else:
-			return 0.1
-	if(y == 1):
-		if(x >= 2):
-			return 0.9
-		else:
-			return 0.1
+# trans_prob_matrix = [[0.05, 0.9, 0.05], [0.9, 0.01, 0.09], [0.1, 0.1, 0.8]]
+# trans_prob = lambda x, y, _: trans_prob_matrix[x][y]
+# states = list(range(3))
+# def emmission_prob(x, y):
+# 	if(y == 0):
+# 		if(x < 2):
+# 			return 0.9
+# 		else:
+# 			return 0.1
+# 	if(y == 1):
+# 		if(x >= 2):
+# 			return 0.9
+# 		else:
+# 			return 0.1
 
-def dict_sum(states):
-	total = 0
-	for state, prob in states.items():
-		total += prob
-	return total
+# def dict_sum(states):
+# 	total = 0
+# 	for state, prob in states.items():
+# 		total += prob
+# 	return total
 
-observations = [0, 0, 0, 0, 1, 1, 1, 1]
-gen_distances = list(range(1000)) #dummy variable
-fwd, posterior = fwd_bkw(observations, gen_distances, states, trans_prob, emmission_prob)
+# observations = [0, 0, 0, 0, 1, 1, 1, 1]
+# gen_distances = list(range(1000)) #dummy variable
+# fwd, posterior = fwd_bkw(observations, gen_distances, states, trans_prob, emmission_prob)
 
 
-most_probable_states = []
-for hs in posterior:
-	max_state = None
-	max_prob = 0
-	for state, prob in hs.items():
-		if(prob > max_prob):
-			max_prob = prob
-			max_state = state
-	most_probable_states.append(max_state)
-print(most_probable_states)
+# most_probable_states = []
+# for hs in posterior:
+# 	max_state = None
+# 	max_prob = 0
+# 	for state, prob in hs.items():
+# 		if(prob > max_prob):
+# 			max_prob = prob
+# 			max_state = state
+# 	most_probable_states.append(max_state)
+# print(most_probable_states)
 
