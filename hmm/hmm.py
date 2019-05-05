@@ -4,8 +4,8 @@ from import_data import *
 import matplotlib.pyplot as plt
 
 data_inds = list(range(100))
+num_obs = len(data_inds)
 num_inds = 10
-num_obs = 30
 
 # Get reference population data 
 pop1 = get_genotypes("CEU", data_inds)[:num_inds, :] 
@@ -43,7 +43,7 @@ def indicator(pop, indiv, value, site):
 	# print(pop, indiv, value)
 	if indiv < n1:
 		return data[indiv][site] == value
-	return data[indiv - n2][site] == value
+	return data[indiv - n1][site] == value
 
 # Helper for generating hidden states
 def gen_hidden_states():
@@ -109,14 +109,20 @@ def transition(curr_state, r_s, obs):
 
 	return next_hidden_state
 
-def emm_prob(curr_state, site):
+def emm_prob(curr_state, site, snptype):
 	# population j is 1 for european, 2 for african 
 	(i, j, k) = curr_state
 	thetai = (theta1 if i == 1 else theta2)
-	if i == j: 
-		return thetai * indicator(j, k, 0, site) + (1 - thetai) * indicator(j, k, 1, site)
-	else: 
-		return theta3 * indicator(j, k, 0, site) + (1 - theta3) * indicator(j, k, 1, site)
+	if snptype == 1:
+		if i == j: 
+			return thetai * indicator(j, k, 0, site) + (1 - thetai) * indicator(j, k, 1, site)
+		else: 
+			return theta3 * indicator(j, k, 0, site) + (1 - theta3) * indicator(j, k, 1, site)
+	else:
+		if i == j: 
+			return thetai * indicator(j, k, 1, site) + (1 - thetai) * indicator(j, k, 0, site)
+		else: 
+			return theta3 * indicator(j, k, 1, site) + (1 - theta3) * indicator(j, k, 0, site)
 
 # Transition state function
 def transition_prob(curr_state, given_state, r_s):
@@ -147,9 +153,9 @@ def transition_prob(curr_state, given_state, r_s):
 
 			
 # Adapted from Wikipedia: Forward-Backward Algorithm
-def fwd_bkw(observations, gen_distances, states):
+def fwd_bkw(observations, snpindices, gen_distances, states):
 	"""
-	observations: array of indices of the sites to be looked at (zero indexed)
+	snpindices: array of indices of the sites to be looked at (zero indexed)
 	states: array of states
 	start_prob: dictionary of key: states, value: probability
 	trans_prob(curr_state, next_state): function which gives probability between two states, returns float
@@ -159,7 +165,7 @@ def fwd_bkw(observations, gen_distances, states):
 
 	fwd = []
 	f_prev = {}
-	for i, observation_i in enumerate(observations):
+	for i, snp_ind in enumerate(snpindices):
 		f_curr = {}
 		for st in states:
 			if i == 0:
@@ -167,7 +173,7 @@ def fwd_bkw(observations, gen_distances, states):
 				prev_f_sum = 1/len(states)
 			else:
 				prev_f_sum = sum(f_prev[k]*transition_prob(k, st, gen_distances[i-1]) for k in states)
-			f_curr[st] = emm_prob(st, observation_i) * prev_f_sum
+			f_curr[st] = emm_prob(st, snp_ind, observations[i]) * prev_f_sum
 
 		fwd.append(f_curr)
 		f_prev = f_curr
@@ -177,29 +183,29 @@ def fwd_bkw(observations, gen_distances, states):
 	# backward part of the algorithm
 	bkw = []
 	b_prev = {}
-	for i, observation_i_plus in enumerate(reversed(observations[1:]+[None])):
+	for i, snp_ind_plus in enumerate(reversed(snpindices[1:]+[None])):
 		b_curr = {}
 		for st in states:
 			if i == 0:
 				# base case for backward part
 				b_curr[st] = 1 / len(states)
 			else:
-				b_curr[st] = sum(transition_prob(st, l, gen_distances[-i]) * emm_prob(l, observation_i_plus) * b_prev[l] for l in states)
+				b_curr[st] = sum(transition_prob(st, l, gen_distances[-i]) * emm_prob(l, snp_ind_plus, observations[snp_ind_plus]) * b_prev[l] for l in states)
 
 		bkw.insert(0, b_curr)
 		b_prev = b_curr
 
-	p_bkw = sum(1/len(states) * emm_prob(l, observations[0]) * b_curr[l] for l in states)
+	p_bkw = sum(1/len(states) * emm_prob(l, snpindices[0], observations[0]) * b_curr[l] for l in states)
 
 	# merging the two parts
 	posterior = []
-	for i in range(len(observations)):
+	for i in range(len(snpindices)):
 		posterior.append({st: fwd[i][st] * bkw[i][st] / p_fwd for st in states})
 
 	return fwd, posterior
 
-def phase_observations(observations, gen_distances, states):
-	fwd, posterior = fwd_bkw(observations, gen_distances, states)
+def phase_observations(observations, snpindices, gen_distances, states):
+	fwd, posterior = fwd_bkw(observations, snpindices, gen_distances, states)
 	most_probable_states = []
 	highest_probs = []
 	for hs in posterior:
@@ -221,8 +227,25 @@ def phase_observations(observations, gen_distances, states):
 
 	return most_probable_states, highest_probs
 
+def classify_new_ind(posterior):
+	classes = []
+	for hs in posterior:
+		population_1 = 0
+		population_2 = 0
+		for state, prob in hs.items():
+			if(state[0] == 1):
+				population_1 += prob
+			else:
+				population_2 += prob
+		if population_1 > population_2:
+			classes.append(0)
+		else:
+			classes.append(1)
+	return classes
+
+
 st = time.time()
-m, h = phase_observations(list(range(num_obs)), gen_dists, gen_hidden_states())
+m, h = phase_observations(load_new_ind_snps(), list(range(num_obs)), gen_dists, gen_hidden_states())
 print("TIME", time.time() - st)
 print(m)
 print(h)
