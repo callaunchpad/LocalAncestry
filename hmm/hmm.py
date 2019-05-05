@@ -2,13 +2,14 @@ import numpy as np
 import time
 from import_data import *
 import matplotlib.pyplot as plt
+from peekable import Peekable
 
 data_inds = list(range(100))
+num_obs = len(data_inds)
 num_inds = 10
-num_obs = 30
 
-# Get reference population data 
-pop1 = get_genotypes("CEU", data_inds)[:num_inds, :] 
+# Get reference population data
+pop1 = get_genotypes("CEU", data_inds)[:num_inds, :]
 pop2 = get_genotypes("YRI", data_inds)[:num_inds, :]
 
 # Get genetic distance data - CEU & YRI snp data files are the same
@@ -110,12 +111,12 @@ def transition(curr_state, r_s, obs):
 	return next_hidden_state
 
 def emm_prob(curr_state, site):
-	# population j is 1 for european, 2 for african 
+	# population j is 1 for european, 2 for african
 	(i, j, k) = curr_state
 	thetai = (theta1 if i == 1 else theta2)
-	if i == j: 
+	if i == j:
 		return thetai * indicator(j, k, 0, site) + (1 - thetai) * indicator(j, k, 1, site)
-	else: 
+	else:
 		return theta3 * indicator(j, k, 0, site) + (1 - theta3) * indicator(j, k, 1, site)
 
 # Transition state function
@@ -145,7 +146,7 @@ def transition_prob(curr_state, given_state, r_s):
 	elif l == i and m != l and j == m and k == n:
 		return pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
 
-			
+
 # Adapted from Wikipedia: Forward-Backward Algorithm
 def fwd_bkw(observations, gen_distances, states):
 	"""
@@ -153,7 +154,7 @@ def fwd_bkw(observations, gen_distances, states):
 	states: array of states
 	start_prob: dictionary of key: states, value: probability
 	trans_prob(curr_state, next_state): function which gives probability between two states, returns float
-	emm_prob(curr_state, obs): function which gives probability of emissions, returns float	
+	emm_prob(curr_state, obs): function which gives probability of emissions, returns float
 	"""
 	# forward part of the algorithm
 
@@ -197,6 +198,58 @@ def fwd_bkw(observations, gen_distances, states):
 		posterior.append({st: fwd[i][st] * bkw[i][st] / p_fwd for st in states})
 
 	return fwd, posterior
+
+def get_ancestry(file_loc):
+    ancestry_file_loc = file_loc
+    ancestry_file = Peekable(filename=ancestry_file_loc)
+
+    first_line = ancestry_file.peek().replace('-','').strip()
+
+    indiviudals = [[] for _ in first_line]
+
+    # print(indiviudals)
+    for line in ancestry_file:
+        line = line.strip().replace('-', '').replace('A', '0').replace('B', '1')
+
+        for i in range(len(line)):
+            indiviudals[i].append(int(line[i]))
+
+    return np.array(indiviudals)
+
+def get_genotypes(file_loc):
+    genotype_file_loc = file_loc
+    genotype_file = Peekable(filename=genotype_file_loc)
+
+    first_line = genotype_file.peek().strip()
+
+    indiviudals = [[] for _ in first_line]
+
+    for line in genotype_file:
+        line = line.strip()
+
+        for i in range(len(line)):
+            indiviudals[i].append(int(line[i]))
+
+    arr = np.array(indiviudals)
+    return arr
+
+def accuracy(geno_file_loc, ancestry_file_loc):
+	outputs = get_ancestry(ancestry_file_loc)
+	genotypes = get_genotypes(geno_file_loc)
+	ind_accuracies = []
+
+	for i in range(len(outputs)):  #for each individual
+		preds = genotypes[i]       #get out prediction for individual i
+		correct = 0
+		for j in range(len(outputs[i])):
+			if preds[j] = outputs[i][j]:
+				correct += 1
+		acc = 100 * (correct/len(outputs[i]))
+		print("Ind", i, ":", acc)
+		ind_accuracies.append(acc)
+	print("-----------------------------------------------")
+	print("Final accuracy: ", 100 * (sum(ind_accuracies)/len(ind_accuracies)))
+	return ind_accuracies
 
 def phase_observations(observations, gen_distances, states):
 	fwd, posterior = fwd_bkw(observations, gen_distances, states)
@@ -302,4 +355,3 @@ print(x, y)
 # 			max_state = state
 # 	most_probable_states.append(max_state)
 # print(most_probable_states)
-
