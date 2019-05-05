@@ -4,8 +4,8 @@ from import_data import *
 import matplotlib.pyplot as plt
 
 data_inds = list(range(100))
-num_inds = 10
-num_obs = 30
+num_inds = 30
+num_obs = 60
 
 # Get reference population data 
 pop1 = get_genotypes("CEU", data_inds)[:num_inds, :] 
@@ -30,6 +30,8 @@ ro2 = 90000/n2
 theta1 = 0.2/(0.2 + n1)
 theta2 = 0.2/(0.2 + n2)
 theta3 = 0.01
+
+transition_prob_time = 0
 
 # Helper functions
 def pois_T(r_s):
@@ -118,32 +120,67 @@ def emm_prob(curr_state, site):
 	else: 
 		return theta3 * indicator(j, k, 0, site) + (1 - theta3) * indicator(j, k, 1, site)
 
-# Transition state function
-def transition_prob(curr_state, given_state, r_s):
-	"""
-	curr_state: (i, j, k) triple of values denoting current hidden state
-	r_s: genetic distance between current pair of SNP sites
-	obs: observed value
+# # Transition state function
+# def transition_prob(curr_state, given_state, r_s):
+# 	"""
+# 	curr_state: (i, j, k) triple of values denoting current hidden state
+# 	r_s: genetic distance between current pair of SNP sites
+# 	obs: observed value
 
-	returns: probability of transitioning from curr_state to given_state
-	"""
-	(i, j, k) = curr_state
-	(l, m, n) = given_state
+# 	returns: probability of transitioning from curr_state to given_state
+# 	"""
+# 	st = time.time()
+# 	(i, j, k) = curr_state
+# 	(l, m, n) = given_state
 
-	mu_l, ro_l, p_l, n_m = get_relevant_vars(given_state)
+# 	mu_l, ro_l, p_l, n_m = get_relevant_vars(given_state)
+# 	prob = 0
+# 	if l != i and m == l:
+# 		prob = (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+# 	elif l != i and m != l:
+# 		prob = (1 - pois_T(r_s))*mu_l * p_l/n_m
+# 	elif l == i and m == l and (j != m or k != n):
+# 		prob = pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * (1 - p_l)/n_m + (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+# 	elif l == i and m == l and j == m and k == n:
+# 		prob = pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * (1 - p_l)/n_m + (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+# 	elif l == i and m != l and (j != m or k != n):
+# 		prob = pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
+# 	elif l == i and m != l and j == m and k == n:
+# 		prob = pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
+# 	global transition_prob_time 
+# 	transition_prob_time += time.time()-st
+# 	return prob
 
-	if l != i and m == l:
-		return (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
-	elif l != i and m != l:
-		return (1 - pois_T(r_s))*mu_l * p_l/n_m
-	elif l == i and m == l and (j != m or k != n):
-		return pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * (1 - p_l)/n_m + (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
-	elif l == i and m == l and j == m and k == n:
-		return pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * (1 - p_l)/n_m + (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
-	elif l == i and m != l and (j != m or k != n):
-		return pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
-	elif l == i and m != l and j == m and k == n:
-		return pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
+def generate_transition_prob(r_s):
+	transition_dict = {}
+	given_states = [(1, 1, 1), (1, 2, 1), (2, 1, 1), (2, 2, 1)]
+	for given_state in given_states:	
+		mu_l, ro_l, p_l, n_m = get_relevant_vars(given_state)
+		p1 = (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+		p2 = (1 - pois_T(r_s))*mu_l * p_l/n_m
+		p3 = pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * (1 - p_l)/n_m + (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+		p4 = pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * (1 - p_l)/n_m + (1 - pois_T(r_s))*mu_l * (1 - p_l)/n_m
+		p5 = pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
+		p6 = pois_T(r_s) * pois_ro(r_s, ro_l) + pois_T(r_s) * (1 - pois_ro(r_s, ro_l)) * p_l/n_m + (1 - pois_T(r_s))*mu_l * p_l/n_m
+		transition_dict[given_state[:2]] = [p1, p2, p3, p4, p5, p6]
+
+	def transition_prob(curr_state, given_state):
+		(i, j, k) = curr_state
+		(l, m, n) = given_state
+		transitions = transition_dict[(l, m)]
+		if l != i and m == l:
+			return transitions[0]
+		elif l != i and m != l:
+			return transitions[1]
+		elif l == i and m == l and (j != m or k != n):
+			return transitions[2]
+		elif l == i and m == l and j == m and k == n:
+			return transitions[3]
+		elif l == i and m != l and (j != m or k != n):
+			return transitions[4]
+		elif l == i and m != l and j == m and k == n:
+			return transitions[5]
+	return transition_prob
 
 			
 # Adapted from Wikipedia: Forward-Backward Algorithm
@@ -156,35 +193,41 @@ def fwd_bkw(observations, gen_distances, states):
 	emm_prob(curr_state, obs): function which gives probability of emissions, returns float	
 	"""
 	# forward part of the algorithm
-
+	forward_pass_time = 0
 	fwd = []
 	f_prev = {}
 	for i, observation_i in enumerate(observations):
+		transition_prob = generate_transition_prob(gen_distances[i-1])
 		f_curr = {}
+		curr_time = time.time()
 		for st in states:
 			if i == 0:
 				# base case for the forward part
 				prev_f_sum = 1/len(states)
 			else:
-				prev_f_sum = sum(f_prev[k]*transition_prob(k, st, gen_distances[i-1]) for k in states)
+				prev_f_sum = sum(f_prev[k]*transition_prob(k, st) for k in states)
 			f_curr[st] = emm_prob(st, observation_i) * prev_f_sum
-
+		forward_pass_time += time.time() - curr_time
 		fwd.append(f_curr)
 		f_prev = f_curr
 
+	curr_time = time.time()
 	p_fwd = sum(f_curr[k] * 1 / len(states) for k in states)
+	forward_pass_time += time.time() - curr_time
+	print("forward pass time:", forward_pass_time)
 
 	# backward part of the algorithm
 	bkw = []
 	b_prev = {}
 	for i, observation_i_plus in enumerate(reversed(observations[1:]+[None])):
+		transition_prob = generate_transition_prob(gen_distances[-i])
 		b_curr = {}
 		for st in states:
 			if i == 0:
 				# base case for backward part
 				b_curr[st] = 1 / len(states)
 			else:
-				b_curr[st] = sum(transition_prob(st, l, gen_distances[-i]) * emm_prob(l, observation_i_plus) * b_prev[l] for l in states)
+				b_curr[st] = sum(transition_prob(st, l) * emm_prob(l, observation_i_plus) * b_prev[l] for l in states)
 
 		bkw.insert(0, b_curr)
 		b_prev = b_curr
@@ -200,6 +243,9 @@ def fwd_bkw(observations, gen_distances, states):
 
 def phase_observations(observations, gen_distances, states):
 	fwd, posterior = fwd_bkw(observations, gen_distances, states)
+	print("Time for transition probabilities", transition_prob_time)
+	for hs in posterior:
+		print("Posterior Unique Values", len(set(hs.values())))
 	most_probable_states = []
 	highest_probs = []
 	for hs in posterior:
