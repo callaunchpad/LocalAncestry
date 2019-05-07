@@ -3,18 +3,24 @@ from peekable import Peekable
 
 DATASET_ROOT = "dataset/"
 
-def get_genotypes(filename):
+def get_genotypes(filename, data_inds):
     genotype_file_loc = DATASET_ROOT + filename + ".phgeno"
     genotype_file = Peekable(filename=genotype_file_loc)
 
     first_line = genotype_file.peek().strip()
 
     individuals = [[] for _ in first_line]
-    for line in genotype_file:
-        line = line.strip()
 
-        for i in range(len(line)):
-            individuals[i].append(int(line[i]))
+    ind = 0
+    for line in genotype_file:
+        if ind > max(data_inds):
+            break
+        if ind in data_inds:
+            line = line.strip()
+
+            for i in range(len(line)):
+                individuals[i].append(int(line[i]))
+        ind += 1
         
     arr = np.array(individuals) # have matrix of individuals [sites x individuals]
     print('done loading', filename)
@@ -33,8 +39,8 @@ def get_gen_distances(filename):
     print('done parsing genetic distances')
     return gen_distances
 
-def get_ancestry():
-    ancestry_file_loc = DATASET_ROOT + FILE_NAME + ".ancestry"
+def get_ancestry(filename, data_inds):
+    ancestry_file_loc = DATASET_ROOT + filename + ".ancestry"
     ancestry_file = Peekable(filename=ancestry_file_loc)
 
     first_line = ancestry_file.peek().replace('-','').strip()
@@ -42,10 +48,15 @@ def get_ancestry():
     individuals = [[] for _ in first_line]
 
     # print(individuals)
+    ind = 0
     for line in ancestry_file:
-        line = line.strip().replace('-', '').replace('A', '0').replace('B', '1')
+        if ind > max(data_inds):
+            break
+        if ind in data_inds:
+            line = line.strip().replace('-', '').replace('A', '0').replace('B', '1')
 
-        for i in range(len(line)):
-            individuals[i].append(int(line[i]))
+            for i in range(len(line)):
+                individuals[i].append(int(line[i]))
+        ind += 1
 
     return np.array(individuals)

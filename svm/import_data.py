@@ -38,4 +38,3 @@ def get_ancestry():
             indiviudals[i].append(int(line[i]))
 
     return np.array(indiviudals)
-
