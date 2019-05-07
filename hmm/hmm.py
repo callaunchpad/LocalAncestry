@@ -6,7 +6,7 @@ import matplotlib.animation as animation
 from peekable import Peekable
 from sklearn.metrics import accuracy_score
 
-data_inds = list(range(100))
+data_inds = list(range(55))
 num_obs = len(data_inds)
 
 num_inds_pop1 = 10
@@ -306,6 +306,8 @@ def classify_new_ind(ind_observations, snpindices, gen_distances, states, alg):
 # 							alg='viterbi')
 # print("TIME", time.time() - st)
 
+### ANIMATION STUFF STARTS ########################################################################################
+
 # only for simulation purposes
 def animate(i, x, y):
     graph.set_data(x[:i+1], y[:i+1])
@@ -337,8 +339,7 @@ c = ['blue' if i < n1 else 'red' for i in range(num_individuals)]
 
 # get the individual who has different ancestries
 for i in range(len(paths)):
-	print('step', i)
-	indivs_from = [st[1] for st in paths[i]] # we need a k > n1 and < n1
+	indivs_from = [st[2] for st in paths[i]] # we need a k > n1 and < n1
 	mask = np.array(indivs_from) > n1
 	if len(set(mask)) > 1: 
 		print('switch at', i)
@@ -357,8 +358,10 @@ plt.ylim(0, len(y))
 # animation
 graph, = plt.plot([], [], 'o-', c='black')
 ani = animation.FuncAnimation(fig, animate, frames=len(indivs_from), fargs=(x, indivs_from), interval=400, repeat=False) #set repeat = True to keep going
+ani.save('animation.gif', writer='imagemagick', fps=60)
 plt.show()
 
+### ANIMATION STUFF ENDS ###############################################################################################
 
 # def batch_chrms_and_classify_and_val_inds(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, snpindices, gen_distances, states, save_vals, alg='fwd_bkw'):
 # 	global pop1
