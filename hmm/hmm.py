@@ -41,10 +41,8 @@ transition_prob_time = 0
 def pois_T(r_s):
 	return np.exp(-r_s * T)
 
-
 def pois_ro(r_s, ro):
 	return np.exp(-r_s * ro)
-
 
 def indicator(pop, indiv, value, site):
 	data = (pop1 if indiv < n1 else pop2)
@@ -133,7 +131,7 @@ def fwd_bkw(observations, snpindices, gen_distances, states):
 	fwd = []
 	f_prev = {}
 	for i, snp_ind in enumerate(snpindices):
-		transition_prob = generate_transition_prob(gen_distances[i-1])
+		transition_prob = generate_transition_prob(gen_distances[i] - gen_distances[max(0, i-1)])
 		f_curr = {}
 		for st in states:
 			if i == 0:
@@ -154,7 +152,7 @@ def fwd_bkw(observations, snpindices, gen_distances, states):
 	bkw = []
 	b_prev = {}
 	for i, snp_ind_plus in enumerate(reversed(snpindices[1:]+[None])):
-		transition_prob = generate_transition_prob(gen_distances[-i])
+		transition_prob = generate_transition_prob(gen_distances[len(gen_distances) - i - 1] - gen_distances[max(0, len(gen_distances) - i - 2)])
 		b_curr = {}
 		for st in states:
 			if i == 0:
@@ -186,7 +184,7 @@ def viterbi(observations, snpindices, gen_distances, states):
 
 	# Run Viterbi when t > 0
 	for i in range(1, len(snpindices)):
-		transition_prob = generate_transition_prob(gen_distances[i-1])
+		transition_prob = generate_transition_prob(gen_distances[i] - gen_distances[max(0, i-1)])
 		snp_ind = snpindices[i]
 		V.append({})
 		for st in states:
@@ -304,30 +302,37 @@ acc = classify_and_val_inds(indiv_inds=list(range(100)),
 							alg='viterbi')
 print("TIME", time.time() - st)
 
+# def batch_chrms_and_classify_and_val_inds(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, snpindices, gen_distances, states, save_vals, alg='fwd_bkw'):
+# 	global pop1
+# 	global pop2
+# 	global num_inds_pop1
+# 	global num_inds_pop2
 
-x = list(range(len(m)))
-y = [(num_inds - elem[2]) for elem in m]
-c = ['blue' if elem[0] == 1 else 'red' for elem in m]
 
-plt.figure()
-plt.scatter(x, y, c = c)
-for i in range(num_inds * 2):
-	plt.plot([-1, num_obs + 1], [num_inds-i, num_inds-i], c = 'black')
-plt.plot(x, y, c = 'green')
-plt.xlabel("SNP Site")
-plt.ylabel("Individual Index")
-plt.show()
-print(x, y)
 
-curr_state = (1, 1, 10)
-st = time.time()
-for i in range(10000):
-	next_state = transition(curr_state, np.random.uniform(), 1)
-	emission = emm_prob(curr_state, i)
-	if i % 500 == 0:
-		print('next_state', next_state)
-		print('emission', emission)
-	curr_state = next_state
+# x = list(range(len(m)))
+# y = [(num_inds - elem[2]) for elem in m]
+# c = ['blue' if elem[0] == 1 else 'red' for elem in m]
+
+# plt.figure()
+# plt.scatter(x, y, c = c)
+# for i in range(num_inds * 2):
+# 	plt.plot([-1, num_obs + 1], [num_inds-i, num_inds-i], c = 'black')
+# plt.plot(x, y, c = 'green')
+# plt.xlabel("SNP Site")
+# plt.ylabel("Individual Index")
+# plt.show()
+# print(x, y)
+
+# curr_state = (1, 1, 10)
+# st = time.time()
+# for i in range(10000):
+# 	next_state = transition(curr_state, np.random.uniform(), 1)
+# 	emission = emm_prob(curr_state, i)
+# 	if i % 500 == 0:
+# 		print('next_state', next_state)
+# 		print('emission', emission)
+# 	curr_state = next_state
 
 # print(time.time() - st)
 
