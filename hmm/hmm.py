@@ -161,25 +161,32 @@ def transition_prob(curr_state, given_state, r_s):
 
 def viterbi(observations, gen_distances, states):
     V = [{}]  # sites x states where each matrix space is a dictionary {max_prob:, prev:}
+    initial_state_prob = 1/400
     for st in states:
-        V[0][st] = {'prob': 1/400, 'prev': None} # initialize first SNP
+        V[0][st] = {'prob': initial_state_prob, 'prev': None} # initialize first SNP
 
     # Run Viterbi when t > 0
-    for i in range(1, 10): #TODO: Change length, I just want to watch the first 10
+    for i in range(1, 100): #TODO: Change length len(observations), I just want to watch the first 10
         observation_i = observations[i]
         V.append({})
         for st in states:
             # finding the max probable path to our state
-            max_tr_prob = V[i-1][states[0]]["prob"] * transition_prob(states[0], st, gen_distances[i-1])
+            max_tr_prob = V[i-1][states[0]]["prob"] + np.log(transition_prob(states[0], st, gen_distances[i-1]))
             prev_st_selected = states[0]
+            previous_states = [prev_st_selected] # need to keep track in case we have multiple max probs
             for prev_st in states[1:]:
-                tr_prob = V[i-1][prev_st]["prob"] * transition_prob(prev_st, st, gen_distances[i-1])
+                tr_prob = V[i-1][prev_st]["prob"] + np.log(transition_prob(prev_st, st, gen_distances[i-1]))
                 if tr_prob > max_tr_prob:
                     max_tr_prob = tr_prob
                     prev_st_selected = prev_st
+                    previous_states = [prev_st_selected] # reintialize the states with the same max probability
+                if tr_prob == max_tr_prob: # keep track of multiple max previous states
+                    previous_states.append(prev_st)
 
+            prev_st_index = np.random.choice(len(previous_states)) # pick the previous state of multiple uniformly at random
+            prev_st_selected = previous_states[prev_st_index]
             # fill the SNP x site matrix with max probability of getting to that point (path included in prev)
-            max_prob = max_tr_prob * emm_prob(st, observation_i) 
+            max_prob = max_tr_prob + np.log(emm_prob(st, observation_i)) 
             V[i][st] = {"prob": max_prob, "prev": prev_st_selected}
 
     # Printing the most probable path 
