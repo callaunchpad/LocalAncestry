@@ -2,6 +2,7 @@ import numpy as np
 import time
 from import_data import *
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from peekable import Peekable
 from sklearn.metrics import accuracy_score
 
@@ -245,6 +246,7 @@ def classify_and_val_inds(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, 
 	outputs = get_ancestry(sim_ancestry_file_loc, snpindices)
 	genotypes = get_genotypes(sim_geno_file_loc, snpindices)
 	ind_accuracies = []
+	paths = []
 
 	for i in indiv_inds:	#for each individual
 		preds, prob = classify_new_ind(genotypes[i], snpindices, gen_distances, states, alg)	#get out prediction for individual i
@@ -261,11 +263,12 @@ def classify_and_val_inds(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, 
 
 		acc = 100 * accuracy_score(outputs[i], preds)
 
-		print("Ind", i, ":", acc)
+		#print("Ind", i, ":", acc)
+		paths.append(preds)
 		ind_accuracies.append(acc)
 	print("-----------------------------------------------")
 	print("Final accuracy: ",  sum(ind_accuracies)/len(ind_accuracies))
-	return ind_accuracies
+	return ind_accuracies, paths
 
 def classify_new_ind(ind_observations, snpindices, gen_distances, states, alg):
 	classes = []
@@ -292,42 +295,82 @@ def classify_new_ind(ind_observations, snpindices, gen_distances, states, alg):
 			classes.append(st[1] - 1) #States are one of (1, 2) originally for population, need to convert to (0, 1) for validation.
 		return classes, prob
 
-st = time.time()
-# m, h = classify_and_val_inds(load_new_ind_snps(), list(range(num_obs)), gen_dists, gen_hidden_states())
-acc = classify_and_val_inds(indiv_inds=list(range(100)),
+
+# st = time.time()
+# # m, h = classify_and_val_inds(load_new_ind_snps(), list(range(num_obs)), gen_dists, gen_hidden_states())
+# acc, paths = classify_and_val_inds(indiv_inds=list(range(100)),
+# 							sim_geno_file_loc='simulated/simulation',
+# 							sim_ancestry_file_loc='simulated/simulation',
+# 							snpindices=data_inds,
+# 							gen_distances=gen_dists,
+# 							states=gen_hidden_states(),
+# 							save_vals=False,
+# 							alg='viterbi')
+# print("TIME", time.time() - st)
+
+# only for simulation purposes
+def animate(i, x, y):
+    graph.set_data(x[:i+1], y[:i+1])
+    return graph
+
+def get_viterbi_paths(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, snpindices, gen_distances, states, save_vals, alg='fwd_bkw'):
+	outputs = get_ancestry(sim_ancestry_file_loc, snpindices)
+	genotypes = get_genotypes(sim_geno_file_loc, snpindices)
+	paths = []
+	for i in indiv_inds:	#for each individual
+		preds, prob = viterbi(genotypes[i], snpindices, gen_distances, states)	#get out prediction for individual i
+		paths.append(preds)	
+	return paths
+
+paths = get_viterbi_paths(indiv_inds=list(range(100)),
 							sim_geno_file_loc='simulated/simulation',
 							sim_ancestry_file_loc='simulated/simulation',
 							snpindices=data_inds,
 							gen_distances=gen_dists,
 							states=gen_hidden_states(),
-							save_vals=False,
-							alg='viterbi')
-print("TIME", time.time() - st)
+							save_vals=False)
 
+# path is always the same length
+path = paths[0]
+num_individuals = n1 + n2
+x = np.arange(len(path)) # snp on x axis
+y = np.arange(num_individuals) # individuals on y axis
+c = ['blue' if i < n1 else 'red' for i in range(num_individuals)]
 
-x = list(range(len(m)))
-y = [(num_inds - elem[2]) for elem in m]
-c = ['blue' if elem[0] == 1 else 'red' for elem in m]
+# get the individual who has different ancestries
+for i in range(len(paths)):
+	print('step', i)
+	indivs_from = [st[1] for st in paths[i]] # we need a k > n1 and < n1
+	mask = np.array(indivs_from) > n1
+	if len(set(mask)) > 1: 
+		print('switch at', i)
+		break
 
-plt.figure()
-plt.scatter(x, y, c = c)
-for i in range(num_inds * 2):
-	plt.plot([-1, num_obs + 1], [num_inds-i, num_inds-i], c = 'black')
-plt.plot(x, y, c = 'green')
+# background plot
+fig = plt.figure()
+for i in range(num_individuals):
+	plt.axhline(y=i, color=c[i])
+plt.title("Ancestry")
 plt.xlabel("SNP Site")
 plt.ylabel("Individual Index")
-plt.show()
-print(x, y)
+plt.xlim(0, len(x))
+plt.ylim(0, len(y))
 
-curr_state = (1, 1, 10)
-st = time.time()
-for i in range(10000):
-	next_state = transition(curr_state, np.random.uniform(), 1)
-	emission = emm_prob(curr_state, i)
-	if i % 500 == 0:
-		print('next_state', next_state)
-		print('emission', emission)
-	curr_state = next_state
+# animation
+graph, = plt.plot([], [], 'o-', c='black')
+ani = animation.FuncAnimation(fig, animate, frames=len(indivs_from), fargs=(x, indivs_from), interval=400, repeat=False) #set repeat = True to keep going
+plt.show()
+
+
+# curr_state = (1, 1, 10)
+# st = time.time()
+# for i in range(10000):
+# 	next_state = transition(curr_state, np.random.uniform(), 1)
+# 	emission = emm_prob(curr_state, i)
+# 	if i % 500 == 0:
+# 		print('next_state', next_state)
+# 		print('emission', emission)
+# 	curr_state = next_state
 
 # print(time.time() - st)
 
