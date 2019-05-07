@@ -39,10 +39,12 @@ transition_prob_time = 0
 
 # Helper functions
 def pois_T(r_s):
-	return np.exp(-r_s * T)
+    return np.exp(-r_s * T)
+
 
 def pois_ro(r_s, ro):
-	return np.exp(-r_s * ro)
+    return np.exp(-r_s * ro)
+
 
 def indicator(pop, indiv, value, site):
 	data = (pop1 if indiv < n1 else pop2)
@@ -53,22 +55,69 @@ def indicator(pop, indiv, value, site):
 
 # Helper for generating hidden states
 def gen_hidden_states():
-	# zero index population individuals
-	hidden_states = []
-	for i in range(n1):
-		hidden_states.append((1, 1, i))
-		hidden_states.append((1, 2, i))
-	for j in range(n2):
-		hidden_states.append((2, 2, n1 + j))
-		hidden_states.append((2, 1, n1 + j))
-	return hidden_states
+    # zero index population individuals
+    hidden_states = []
+    for i in range(n1):
+        hidden_states.append((1, 1, i))
+        hidden_states.append((1, 2, i))
+    for j in range(n2):
+        hidden_states.append((2, 2, n1 + j))
+        hidden_states.append((2, 1, n1 + j))
+    return hidden_states
 
 # Helper for getting relevant variables
 def get_relevant_vars(hidden_state):
-	(l, m, n) = hidden_state
-	(mu_l, ro_l, p_l) = (mu1, ro1, p1) if l == 1 else (mu2, ro2, p2)
-	n_m = n1 if m == 1 else n2
-	return (mu_l, ro_l, p_l, n_m)
+    (l, m, n) = hidden_state
+    (mu_l, ro_l, p_l) = (mu1, ro1, p1) if l == 1 else (mu2, ro2, p2)
+    n_m = n1 if m == 1 else n2
+    return (mu_l, ro_l, p_l, n_m)
+
+# Adapted from Wikipedia: Viterbi Algorithm
+def viterbi(observations, gen_distances, states):
+    V = [{}]  # sites x states where each matrix space is a dictionary {max_prob:, prev:}
+    initial_state_prob = 1/400
+    for st in states:
+        V[0][st] = {'prob': initial_state_prob, 'prev': None} # initialize first SNP
+
+    # Run Viterbi when t > 0
+    for i in range(1, 100): #TODO: Change length len(observations), I just want to watch the first 10
+        observation_i = observations[i]
+        V.append({})
+        for st in states:
+            # finding the max probable path to our state
+            max_tr_prob = V[i-1][states[0]]["prob"] + np.log(transition_prob(states[0], st, gen_distances[i-1]))
+            prev_st_selected = states[0]
+            previous_states = [prev_st_selected] # need to keep track in case we have multiple max probs
+            for prev_st in states[1:]:
+                tr_prob = V[i-1][prev_st]["prob"] + np.log(transition_prob(prev_st, st, gen_distances[i-1]))
+                if tr_prob > max_tr_prob:
+                    max_tr_prob = tr_prob
+                    prev_st_selected = prev_st
+                    previous_states = [prev_st_selected] # reintialize the states with the same max probability
+                if tr_prob == max_tr_prob: # keep track of multiple max previous states
+                    previous_states.append(prev_st)
+
+            prev_st_index = np.random.choice(len(previous_states)) # pick the previous state of multiple uniformly at random
+            prev_st_selected = previous_states[prev_st_index]
+            # fill the SNP x site matrix with max probability of getting to that point (path included in prev)
+            max_prob = max_tr_prob + np.log(emm_prob(st, observation_i)) 
+            V[i][st] = {"prob": max_prob, "prev": prev_st_selected}
+
+    # Printing the most probable path 
+    
+    opt_path = []
+    # Get most probable state
+    last_site_probs = V[-1]
+    st = max(last_site_probs, key= lambda x: last_site_probs[x]["prob"])
+    opt_path.append(st)
+
+    # Iterate backwards till the first observation
+    previous = last_site_probs[st]["prev"]
+    for t in range(len(V) - 2, -1, -1): 
+        opt_path.insert(0, V[t + 1][previous]["prev"]) # inserting at the front of where you are
+        previous = V[t + 1][previous]["prev"]
+
+    print('The steps of states are ', '[%s]' % ', '.join(map(str, opt_path)), 'with highest probability of', max_prob)
 
 def emm_prob(curr_state, site, snptype):
 	# population j is 1 for european, 2 for african 
@@ -218,11 +267,9 @@ def phase_observations(observations, snpindices, gen_distances, states):
 		normalized_probs = np.array(list(max_states.values()))/sum(list(max_states.values()))
 		state_ind = np.random.choice(list(range(len(max_states))), 1, p=normalized_probs)[0]
 		state = list(max_states.keys())[state_ind]
-
-		most_probable_states.append(state)
-		highest_probs.append(max_states[state])
-
-	return most_probable_states, highest_probs
+   
+def phase_observations(observations, gen_distances, states):
+    viterbi(observations, gen_distances, states)
 
 def classify_new_ind(ind_observations, snpindices, gen_distances, states):
 	classes = []
@@ -241,7 +288,6 @@ def classify_new_ind(ind_observations, snpindices, gen_distances, states):
 		else:
 			classes.append(1)
 	return classes, posterior
-
 
 st = time.time()
 # m, h = classify_and_val_inds(load_new_ind_snps(), list(range(num_obs)), gen_dists, gen_hidden_states())
@@ -290,42 +336,3 @@ print("TIME", time.time() - st)
 # 			print('next_state', next_state)
 # 			print('emission', em_prob)
 # 		curr_state = next_state
-
-# 	print(time.time() - st)
-
-# trans_prob_matrix = [[0.05, 0.9, 0.05], [0.9, 0.01, 0.09], [0.1, 0.1, 0.8]]
-# trans_prob = lambda x, y, _: trans_prob_matrix[x][y]
-# states = list(range(3))
-# def emmission_prob(x, y):
-# 	if(y == 0):
-# 		if(x < 2):
-# 			return 0.9
-# 		else:
-# 			return 0.1
-# 	if(y == 1):
-# 		if(x >= 2):
-# 			return 0.9
-# 		else:
-# 			return 0.1
-
-# def dict_sum(states):
-# 	total = 0
-# 	for state, prob in states.items():
-# 		total += prob
-# 	return total
-
-# observations = [0, 0, 0, 0, 1, 1, 1, 1]
-# gen_distances = list(range(1000)) #dummy variable
-# fwd, posterior = fwd_bkw(observations, gen_distances, states, trans_prob, emmission_prob)
-
-
-# most_probable_states = []
-# for hs in posterior:
-# 	max_state = None
-# 	max_prob = 0
-# 	for state, prob in hs.items():
-# 		if(prob > max_prob):
-# 			max_prob = prob
-# 			max_state = state
-# 	most_probable_states.append(max_state)
-# print(most_probable_states)
