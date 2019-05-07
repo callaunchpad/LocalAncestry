@@ -264,8 +264,7 @@ def get_ancestry(file_loc):
     return np.array(indiviudals)
 
 def get_genotypes(file_loc):
-    genotype_file_loc = file_loc
-    genotype_file = Peekable(filename=genotype_file_loc)
+    genotype_file = Peekable(filename=file_loc)
 
     first_line = genotype_file.peek().strip()
 
