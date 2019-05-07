@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 from peekable import Peekable
 from sklearn.metrics import accuracy_score
 
-data_inds = list(range(29887))
+data_inds = list(range(100))
 num_obs = len(data_inds)
 
-num_inds_pop1 = 222
-num_inds_pop2 = 224
+num_inds_pop1 = 10
+num_inds_pop2 = 10
 
 # Get reference population data
 pop1 = get_genotypes("CEU", data_inds)[:num_inds_pop1, :]
@@ -39,11 +39,11 @@ transition_prob_time = 0
 
 # Helper functions
 def pois_T(r_s):
-    return np.exp(-r_s * T)
+	return np.exp(-r_s * T)
 
 
 def pois_ro(r_s, ro):
-    return np.exp(-r_s * ro)
+	return np.exp(-r_s * ro)
 
 
 def indicator(pop, indiv, value, site):
@@ -55,69 +55,22 @@ def indicator(pop, indiv, value, site):
 
 # Helper for generating hidden states
 def gen_hidden_states():
-    # zero index population individuals
-    hidden_states = []
-    for i in range(n1):
-        hidden_states.append((1, 1, i))
-        hidden_states.append((1, 2, i))
-    for j in range(n2):
-        hidden_states.append((2, 2, n1 + j))
-        hidden_states.append((2, 1, n1 + j))
-    return hidden_states
+	# zero index population individuals
+	hidden_states = []
+	for i in range(n1):
+		hidden_states.append((1, 1, i))
+		hidden_states.append((1, 2, i))
+	for j in range(n2):
+		hidden_states.append((2, 2, n1 + j))
+		hidden_states.append((2, 1, n1 + j))
+	return hidden_states
 
 # Helper for getting relevant variables
 def get_relevant_vars(hidden_state):
-    (l, m, n) = hidden_state
-    (mu_l, ro_l, p_l) = (mu1, ro1, p1) if l == 1 else (mu2, ro2, p2)
-    n_m = n1 if m == 1 else n2
-    return (mu_l, ro_l, p_l, n_m)
-
-# Adapted from Wikipedia: Viterbi Algorithm
-def viterbi(observations, gen_distances, states):
-    V = [{}]  # sites x states where each matrix space is a dictionary {max_prob:, prev:}
-    initial_state_prob = 1/400
-    for st in states:
-        V[0][st] = {'prob': initial_state_prob, 'prev': None} # initialize first SNP
-
-    # Run Viterbi when t > 0
-    for i in range(1, 100): #TODO: Change length len(observations), I just want to watch the first 10
-        observation_i = observations[i]
-        V.append({})
-        for st in states:
-            # finding the max probable path to our state
-            max_tr_prob = V[i-1][states[0]]["prob"] + np.log(transition_prob(states[0], st, gen_distances[i-1]))
-            prev_st_selected = states[0]
-            previous_states = [prev_st_selected] # need to keep track in case we have multiple max probs
-            for prev_st in states[1:]:
-                tr_prob = V[i-1][prev_st]["prob"] + np.log(transition_prob(prev_st, st, gen_distances[i-1]))
-                if tr_prob > max_tr_prob:
-                    max_tr_prob = tr_prob
-                    prev_st_selected = prev_st
-                    previous_states = [prev_st_selected] # reintialize the states with the same max probability
-                if tr_prob == max_tr_prob: # keep track of multiple max previous states
-                    previous_states.append(prev_st)
-
-            prev_st_index = np.random.choice(len(previous_states)) # pick the previous state of multiple uniformly at random
-            prev_st_selected = previous_states[prev_st_index]
-            # fill the SNP x site matrix with max probability of getting to that point (path included in prev)
-            max_prob = max_tr_prob + np.log(emm_prob(st, observation_i)) 
-            V[i][st] = {"prob": max_prob, "prev": prev_st_selected}
-
-    # Printing the most probable path 
-    
-    opt_path = []
-    # Get most probable state
-    last_site_probs = V[-1]
-    st = max(last_site_probs, key= lambda x: last_site_probs[x]["prob"])
-    opt_path.append(st)
-
-    # Iterate backwards till the first observation
-    previous = last_site_probs[st]["prev"]
-    for t in range(len(V) - 2, -1, -1): 
-        opt_path.insert(0, V[t + 1][previous]["prev"]) # inserting at the front of where you are
-        previous = V[t + 1][previous]["prev"]
-
-    print('The steps of states are ', '[%s]' % ', '.join(map(str, opt_path)), 'with highest probability of', max_prob)
+	(l, m, n) = hidden_state
+	(mu_l, ro_l, p_l) = (mu1, ro1, p1) if l == 1 else (mu2, ro2, p2)
+	n_m = n1 if m == 1 else n2
+	return (mu_l, ro_l, p_l, n_m)
 
 def emm_prob(curr_state, site, snptype):
 	# population j is 1 for european, 2 for african 
@@ -224,31 +177,51 @@ def fwd_bkw(observations, snpindices, gen_distances, states):
 
 	return fwd, posterior
 
-def classify_and_val_inds(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, snpindices, gen_distances, states, save_vals):
-	outputs = get_ancestry(sim_ancestry_file_loc, snpindices)
-	genotypes = get_genotypes(sim_geno_file_loc, snpindices)
-	ind_accuracies = []
+# Adapted from Wikipedia: Viterbi Algorithm
+def viterbi(observations, snpindices, gen_distances, states):
+	V = [{}]  # sites x states where each matrix space is a dictionary {max_prob:, prev:}
+	initial_state_prob = 1/(n1 + n2)
+	for st in states:
+		V[0][st] = {'prob': initial_state_prob, 'prev': None} # initialize first SNP
 
-	for i in indiv_inds:	#for each individual
-		preds, posterior = classify_new_ind(genotypes[i], snpindices, gen_distances, states)	#get out prediction for individual i
+	# Run Viterbi when t > 0
+	for i in range(1, len(snpindices)):
+		transition_prob = generate_transition_prob(gen_distances[i-1])
+		snp_ind = snpindices[i]
+		V.append({})
+		for st in states:
+			# finding the max probable path to our state
+			max_tr_prob = V[i-1][states[0]]["prob"] + np.log(transition_prob(states[0], st))
+			prev_st_selected = states[0]
+			previous_states = [prev_st_selected] # need to keep track in case we have multiple max probs
+			for prev_st in states[1:]:
+				tr_prob = V[i-1][prev_st]["prob"] + np.log(transition_prob(prev_st, st))
+				if tr_prob > max_tr_prob:
+					max_tr_prob = tr_prob
+					prev_st_selected = prev_st
+					previous_states = [prev_st_selected] # reintialize the states with the same max probability
+				if tr_prob == max_tr_prob: # keep track of multiple max previous states
+					previous_states.append(prev_st)
 
-		if save_vals:
-			print("********************* SAVING PREDICTIONS *********************")
-			np.save('preds_ind_' + str(i) + '.npy', np.array(preds))
-			
-			print("********************* SAVING TRUE VALS *********************")
-			np.save('true_ind_' + str(i) + '.npy', np.array(outputs[i]))
+			prev_st_index = np.random.choice(len(previous_states)) # pick the previous state of multiple uniformly at random
+			prev_st_selected = previous_states[prev_st_index]
+			# fill the SNP x site matrix with max probability of getting to that point (path included in prev)
+			max_prob = max_tr_prob + np.log(emm_prob(st, snp_ind, observations[i])) 
+			V[i][st] = {"prob": max_prob, "prev": prev_st_selected}
+ 
+	opt_path = []
+	# Get most probable state
+	last_site_probs = V[-1]
+	st = max(last_site_probs, key=lambda x: last_site_probs[x]["prob"])
+	opt_path.append(st)
 
-			print("********************* SAVING POSTERIOR *********************")
-			np.save('posterior_ind_' + str(i) + '.npy', np.array(posterior))
+	# Iterate backwards till the first observation
+	previous = last_site_probs[st]["prev"]
+	for t in range(len(V) - 2, -1, -1): 
+		opt_path.insert(0, V[t + 1][previous]["prev"]) # inserting at the front of where you are
+		previous = V[t + 1][previous]["prev"]
 
-		acc = 100 * accuracy_score(outputs[i], preds)
-
-		print("Ind", i, ":", acc)
-		ind_accuracies.append(acc)
-	print("-----------------------------------------------")
-	print("Final accuracy: ",  sum(ind_accuracies)/len(ind_accuracies))
-	return ind_accuracies
+	return opt_path, max_prob
 
 def phase_observations(observations, snpindices, gen_distances, states):
 	fwd, posterior = fwd_bkw(observations, snpindices, gen_distances, states)
@@ -267,62 +240,94 @@ def phase_observations(observations, snpindices, gen_distances, states):
 		normalized_probs = np.array(list(max_states.values()))/sum(list(max_states.values()))
 		state_ind = np.random.choice(list(range(len(max_states))), 1, p=normalized_probs)[0]
 		state = list(max_states.keys())[state_ind]
-   
-def phase_observations(observations, gen_distances, states):
-    viterbi(observations, gen_distances, states)
 
-def classify_new_ind(ind_observations, snpindices, gen_distances, states):
+def classify_and_val_inds(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, snpindices, gen_distances, states, save_vals, alg='fwd_bkw'):
+	outputs = get_ancestry(sim_ancestry_file_loc, snpindices)
+	genotypes = get_genotypes(sim_geno_file_loc, snpindices)
+	ind_accuracies = []
+
+	for i in indiv_inds:	#for each individual
+		preds, prob = classify_new_ind(genotypes[i], snpindices, gen_distances, states, alg)	#get out prediction for individual i
+
+		if save_vals:
+			print("********************* SAVING PREDICTIONS *********************")
+			np.save('preds_ind_' + str(i) + '.npy', np.array(preds))
+			
+			print("********************* SAVING TRUE VALS *********************")
+			np.save('true_ind_' + str(i) + '.npy', np.array(outputs[i]))
+
+			print("********************* SAVING POSTERIOR *********************")
+			np.save('prob_ind_' + str(i) + '.npy', np.array(prob))
+
+		acc = 100 * accuracy_score(outputs[i], preds)
+
+		print("Ind", i, ":", acc)
+		ind_accuracies.append(acc)
+	print("-----------------------------------------------")
+	print("Final accuracy: ",  sum(ind_accuracies)/len(ind_accuracies))
+	return ind_accuracies
+
+def classify_new_ind(ind_observations, snpindices, gen_distances, states, alg):
 	classes = []
-	fwd, posterior = fwd_bkw(ind_observations, snpindices, gen_distances, states)
+	if alg == 'fwd_bkw':
+		fwd, posterior = fwd_bkw(ind_observations, snpindices, gen_distances, states)
 	
-	for hs in posterior:
-		population_1 = 0
-		population_2 = 0
-		for state, prob in hs.items():
-			if(state[0] == 1):
-				population_1 += prob
+		for hs in posterior:
+			population_1 = 0
+			population_2 = 0
+			for state, prob in hs.items():
+				if(state[0] == 1):
+					population_1 += prob
+				else:
+					population_2 += prob
+			if population_1 > population_2:
+				classes.append(0)
 			else:
-				population_2 += prob
-		if population_1 > population_2:
-			classes.append(0)
-		else:
-			classes.append(1)
-	return classes, posterior
+				classes.append(1)
+		return classes, posterior
+	elif alg == 'viterbi':
+		path, prob = viterbi(ind_observations, snpindices, gen_distances, states)
+		classes = [] 
+		for st in path: 
+			classes.append(st[1] - 1) #States are one of (1, 2) originally for population, need to convert to (0, 1) for validation.
+		return classes, prob
 
 st = time.time()
 # m, h = classify_and_val_inds(load_new_ind_snps(), list(range(num_obs)), gen_dists, gen_hidden_states())
-acc = classify_and_val_inds(indiv_inds=[0],
+acc = classify_and_val_inds(indiv_inds=list(range(100)),
 							sim_geno_file_loc='simulated/simulation',
 							sim_ancestry_file_loc='simulated/simulation',
 							snpindices=data_inds,
 							gen_distances=gen_dists,
 							states=gen_hidden_states(),
-							save_vals=True)
+							save_vals=False,
+							alg='viterbi')
 print("TIME", time.time() - st)
 
-# x = list(range(len(m)))
-# y = [(num_inds - elem[2])  for elem in m]
-# c = ['blue' if elem[0] == 1 else 'red' for elem in m]
 
-# plt.figure()
-# plt.scatter(x, y, c = c)
-# for i in range(num_inds * 2):
-# 	plt.plot([-1, num_obs + 1], [num_inds-i, num_inds-i], c = 'black')
-# plt.plot(x, y, c = 'green')
-# plt.xlabel("SNP Site")
-# plt.ylabel("Individual Index")
-# plt.show()
-# print(x, y)
+x = list(range(len(m)))
+y = [(num_inds - elem[2]) for elem in m]
+c = ['blue' if elem[0] == 1 else 'red' for elem in m]
 
-# curr_state = (1, 1, 10)
-# st = time.time()
-# for i in range(10000):
-# 	next_state = transition(curr_state, np.random.uniform(), 1)
-# 	emission = emm_prob(curr_state, i)
-# 	if i % 500 == 0:
-# 		print('next_state', next_state)
-# 		print('emission', emission)
-# 	curr_state = next_state
+plt.figure()
+plt.scatter(x, y, c = c)
+for i in range(num_inds * 2):
+	plt.plot([-1, num_obs + 1], [num_inds-i, num_inds-i], c = 'black')
+plt.plot(x, y, c = 'green')
+plt.xlabel("SNP Site")
+plt.ylabel("Individual Index")
+plt.show()
+print(x, y)
+
+curr_state = (1, 1, 10)
+st = time.time()
+for i in range(10000):
+	next_state = transition(curr_state, np.random.uniform(), 1)
+	emission = emm_prob(curr_state, i)
+	if i % 500 == 0:
+		print('next_state', next_state)
+		print('emission', emission)
+	curr_state = next_state
 
 # print(time.time() - st)
 
