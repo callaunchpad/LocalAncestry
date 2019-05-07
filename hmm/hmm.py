@@ -294,70 +294,70 @@ def classify_new_ind(ind_observations, snpindices, gen_distances, states, alg):
 		return classes, prob
 
 
-# st = time.time()
-# # m, h = classify_and_val_inds(load_new_ind_snps(), list(range(num_obs)), gen_dists, gen_hidden_states())
-# acc, paths = classify_and_val_inds(indiv_inds=list(range(100)),
-# 							sim_geno_file_loc='simulated/simulation',
-# 							sim_ancestry_file_loc='simulated/simulation',
-# 							snpindices=data_inds,
-# 							gen_distances=gen_dists,
-# 							states=gen_hidden_states(),
-# 							save_vals=False,
-# 							alg='viterbi')
-# print("TIME", time.time() - st)
-
-# only for simulation purposes
-def animate(i, x, y):
-    graph.set_data(x[:i+1], y[:i+1])
-    return graph
-
-def get_viterbi_paths(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, snpindices, gen_distances, states, save_vals):
-	outputs = get_ancestry(sim_ancestry_file_loc, snpindices)
-	genotypes = get_genotypes(sim_geno_file_loc, snpindices)
-	paths = []
-	for i in indiv_inds:	#for each individual
-		preds, prob = viterbi(genotypes[i], snpindices, gen_distances, states)	#get out prediction for individual i
-		paths.append(preds)	
-	return paths
-
-paths = get_viterbi_paths(indiv_inds=list(range(100)),
+st = time.time()
+# m, h = classify_and_val_inds(load_new_ind_snps(), list(range(num_obs)), gen_dists, gen_hidden_states())
+acc, paths = classify_and_val_inds(indiv_inds=[0],
 							sim_geno_file_loc='simulated/simulation',
 							sim_ancestry_file_loc='simulated/simulation',
 							snpindices=data_inds,
 							gen_distances=gen_dists,
 							states=gen_hidden_states(),
-							save_vals=False)
+							save_vals=True,
+							alg='fwd_bkw')
+print("TIME", time.time() - st)
 
-# path is always the same length
-path = paths[0]
-num_individuals = n1 + n2
-x = np.arange(len(path)) # snp on x axis
-y = np.arange(num_individuals) # individuals on y axis
-c = ['blue' if i < n1 else 'red' for i in range(num_individuals)]
+# only for simulation purposes
+# def animate(i, x, y):
+#     graph.set_data(x[:i+1], y[:i+1])
+#     return graph
 
-# get the individual who has different ancestries
-for i in range(len(paths)):
-	print('step', i)
-	indivs_from = [st[1] for st in paths[i]] # we need a k > n1 and < n1
-	mask = np.array(indivs_from) > n1
-	if len(set(mask)) > 1: 
-		print('switch at', i)
-		break
+# def get_viterbi_paths(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, snpindices, gen_distances, states, save_vals):
+# 	outputs = get_ancestry(sim_ancestry_file_loc, snpindices)
+# 	genotypes = get_genotypes(sim_geno_file_loc, snpindices)
+# 	paths = []
+# 	for i in indiv_inds:	#for each individual
+# 		preds, prob = viterbi(genotypes[i], snpindices, gen_distances, states)	#get out prediction for individual i
+# 		paths.append(preds)	
+# 	return paths
 
-# background plot
-fig = plt.figure()
-for i in range(num_individuals):
-	plt.axhline(y=i, color=c[i])
-plt.title("Ancestry")
-plt.xlabel("SNP Site")
-plt.ylabel("Individual Index")
-plt.xlim(0, len(x))
-plt.ylim(0, len(y))
+# paths = get_viterbi_paths(indiv_inds=list(range(100)),
+# 							sim_geno_file_loc='simulated/simulation',
+# 							sim_ancestry_file_loc='simulated/simulation',
+# 							snpindices=data_inds,
+# 							gen_distances=gen_dists,
+# 							states=gen_hidden_states(),
+# 							save_vals=False)
 
-# animation
-graph, = plt.plot([], [], 'o-', c='black')
-ani = animation.FuncAnimation(fig, animate, frames=len(indivs_from), fargs=(x, indivs_from), interval=400, repeat=False) #set repeat = True to keep going
-plt.show()
+# # path is always the same length
+# path = paths[0]
+# num_individuals = n1 + n2
+# x = np.arange(len(path)) # snp on x axis
+# y = np.arange(num_individuals) # individuals on y axis
+# c = ['blue' if i < n1 else 'red' for i in range(num_individuals)]
+
+# # get the individual who has different ancestries
+# for i in range(len(paths)):
+# 	print('step', i)
+# 	indivs_from = [st[1] for st in paths[i]] # we need a k > n1 and < n1
+# 	mask = np.array(indivs_from) > n1
+# 	if len(set(mask)) > 1: 
+# 		print('switch at', i)
+# 		break
+
+# # background plot
+# fig = plt.figure()
+# for i in range(num_individuals):
+# 	plt.axhline(y=i, color=c[i])
+# plt.title("Ancestry")
+# plt.xlabel("SNP Site")
+# plt.ylabel("Individual Index")
+# plt.xlim(0, len(x))
+# plt.ylim(0, len(y))
+
+# # animation
+# graph, = plt.plot([], [], 'o-', c='black')
+# ani = animation.FuncAnimation(fig, animate, frames=len(indivs_from), fargs=(x, indivs_from), interval=400, repeat=False) #set repeat = True to keep going
+# plt.show()
 
 
 # def batch_chrms_and_classify_and_val_inds(indiv_inds, sim_geno_file_loc, sim_ancestry_file_loc, snpindices, gen_distances, states, save_vals, alg='fwd_bkw'):
